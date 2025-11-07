@@ -1,6 +1,6 @@
 const BLUE = ["#1F5A99", "#2E7BCB", "#3C8DE6", "#93C5FD", "#0A2540"];
 
-function barChart(sel, rows, xKey, yKey, title) {
+function barChart_org(sel, rows, xKey, yKey, title) {
   const el = d3.select(sel);
   el.selectAll("*").remove();
   const width = el.node().clientWidth || 600,
@@ -45,6 +45,58 @@ function barChart(sel, rows, xKey, yKey, title) {
     .attr("font-weight", 700)
     .text(title || "");
 }
+
+function barChart(sel, rows, xKey, yKey, title) {
+  const el = d3.select(sel);
+  el.selectAll("*").remove();
+
+  const width = el.node().clientWidth || 600,
+        height = el.node().clientHeight || 300;
+
+  const m = { top: 18, right: 24, bottom: 60, left: 64 };
+  const x = d3
+    .scaleBand()
+    .domain(rows.map(d => d[xKey]))
+    .range([m.left, width - m.right])
+    .padding(0.25);
+
+  const y = d3
+    .scaleLinear()
+    .domain([0, d3.max(rows, d => +d[yKey])])
+    .nice()
+    .range([height - m.bottom, m.top]);
+
+  const svg = el.append("svg").attr("width", width).attr("height", height);
+  svg
+    .selectAll("rect")
+    .data(rows)
+    .join("rect")
+    .attr("x", d => x(d[xKey]))
+    .attr("y", d => y(d[yKey]))
+    .attr("width", x.bandwidth())
+    .attr("height", d => y(0) - y(d[yKey]))
+    .attr("fill", (d, i) => BLUE[i % BLUE.length]);
+      svg
+    .append("g")
+    .attr("transform", `translate(0,${height - m.bottom})`)
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .attr("transform", "rotate(-18)")
+    .style("text-anchor", "end");
+  svg
+    .append("g")
+    .attr("transform", `translate(${m.left},0)`)
+    .call(d3.axisLeft(y));
+  svg
+    .append("text")
+    .attr("x", m.left)
+    .attr("y", m.top - 6)
+    .attr("fill", BLUE[4])
+    .attr("font-weight", 700)
+    .text(title || "");
+}
+ 
+
 function lineChart(sel, rows, xKey, yKey, title) {
   const el = d3.select(sel);
   el.selectAll("*").remove();
@@ -213,42 +265,41 @@ function metricPills(sel, m) {
 }
 function renderOverall() {
   const S = DATA.scores;
+  const data = [
+  { category: "A", value: 23 },
+  { category: "B", value: 32 },
+  { category: "C", value: 10 }
+];
   barChart(
     "#chart-rmse",
-    S.map(function (d) {
-      return { model: d.model, val: d.RMSE };
-    }),
-    "model",
-    "val",
-    "RMSE by Model"
-  );
-  barChart(
-    "#chart-mae",
-    S.map(function (d) {
-      return { model: d.model, val: d.MAE };
-    }),
-    "model",
-    "val",
-    "MAE by Model"
-  );
-  barChart(
-    "#chart-r2",
-    S.map(function (d) {
-      return { model: d.model, val: d.R2 };
-    }),
-    "model",
-    "val",
-    "R² by Model"
-  );
-  barChart(
-    "#chart-mape",
-    S.map(function (d) {
-      return { model: d.model, val: d.MAPE_pct };
-    }),
-    "model",
-    "val",
-    "MAPE (%) by Model"
-  );
+  data, "category", "value", "My Chart");
+  // barChart(
+  //   "#chart-mae",
+  //   S.map(function (d) {
+  //     return { model: d.model, val: d.MAE };
+  //   }),
+  //   "model",
+  //   "val",
+  //   "MAE by Model"
+  // );
+  // barChart(
+  //   "#chart-r2",
+  //   S.map(function (d) {
+  //     return { model: d.model, val: d.R2 };
+  //   }),
+  //   "model",
+  //   "val",
+  //   "R² by Model"
+  // );
+  // barChart(
+  //   "#chart-mape",
+  //   S.map(function (d) {
+  //     return { model: d.model, val: d.MAPE_pct };
+  //   }),
+  //   "model",
+  //   "val",
+  //   "MAPE (%) by Model"
+  // );
   lineChart(
     "#chart-elbow",
     DATA.elbow.map(function (e) {

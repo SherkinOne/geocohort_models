@@ -1,30 +1,23 @@
 from fastapi import FastAPI, Form, Request, Depends, HTTPException
-from fastapi_login import LoginManager
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from starlette.middleware.sessions import SessionMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from pathlib import Path
-from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 # from PIL import Image
-from datetime import datetime, timedelta, timezone
 # from enum import Enum
 import os
 from starlette.middleware.base import BaseHTTPMiddleware
 
- 
 import math
 import random
 import time
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Union
-import numpy as np
 
 
 # // setup login cookies
@@ -52,20 +45,11 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# MONGODB_URI = os.getenv("MONGODB_CONNECTION_URI")
-# client = AsyncIOMotorClient(MONGODB_URI)
-# ### assign different datavases to different variables
-# ARC_TOOL_DB = os.getenv("HEATSYNC_DB_NAME")
-# arctoolDBClient = client[ARC_TOOL_DB]
-# arcUsers = arctoolDBClient["simple_users"]
+MONGODB_URI = os.getenv("MONGODB_CONNECTION_URI")
+print("MONGODB_URI: ", MONGODB_URI)
+client = AsyncIOMotorClient(MONGODB_URI)
+geoCohortDBClient = client["Geocohort"]
 
-# MONGODB_URI = 'mongodb://heatSyncWebPlatform:h3atsync2024@52.17.206.238/eol_sensors'
-# client = AsyncIOMotorClient(MONGODB_URI)
-# ### assign different datavases to different variables
-# ARC_TOOL_DB = "eol_sensors"
-# arctoolDBClient = client[ARC_TOOL_DB]
-
-# 'mongodb://heatSyncWebPlatform:h3atsync2024@52.17.206.238/eol_sensors');
 
 # Password  hashing setup
 # pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -75,16 +59,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-## this is the login tocken that expires after 30 minutes
-# def create_access_token(data: dict, expires_delta: timedelta | None = None):
-#     to_encode = data.copy()
-#     if expires_delta:
-#         expire = datetime.now(timezone.utc) + expires_delta
-#     else:
-#         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-#     to_encode.update({"exp": expire})
-#     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-#     return encoded_jwt
 
 class CSPMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -119,14 +93,60 @@ class CSPMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(CSPMiddleware)
 
+
+async def get_keys_for_tabs(tab_name) :
+    overallDB= geoCohortDBClient["Overall"]
+    toMatch=  {
+        '$match': {
+            'Name':  tab_name
+        }
+    }
+    keys = await overallDB.aggregate([
+    toMatch, {
+        '$project': {
+            'mlkeys': {
+                '$map': {
+                    'input': {
+                        '$objectToArray': '$ML'
+                    }, 
+                    'as': 'pair', 
+                    'in': '$$pair.k'
+                }
+            }, "_id": 0
+        }
+    }
+]).to_list(length=None)
+    return keys[0]['mlkeys']
+
+async def  get_db_names(tab_name) :
+    overallDB= geoCohortDBClient["Overall"]
+    toMatch=  {'Name':  tab_name}
+    dbList = await overallDB.find_one(toMatch, {"ML": 1, "_id": 0})
+    print ("DB LIST: ", dbList)
+    return dbList
+
+async def  get_db_metrics(db_name) :
+    overallDB= geoCohortDBClient[db_name]
+    dbList = await overallDB.find_one({}, {"metrics": 1, "_id": 0})
+    if dbList is not None and 'metrics' in dbList:
+        return dbList['metrics']
+    else:
+        return {}
+
 @app.get("/dashboard/{tab_name}")
 async def dashboard(request: Request, tab_name: str):
     # so should be a swtich and return the data to the template
-    print("Here")
     dataToReturn = getTimeSeriesDemoData()
     ## get the top level tabs
 
-    topLeveltabs = ["Predictive_Temperature_Modeling"]
+    topLeveltabs = await get_keys_for_tabs(tab_name)
+    getDataBaseNames = await get_db_names(tab_name)
+    metricsData = {}
+    for databaseName in getDataBaseNames['ML']:
+        db_name =  getDataBaseNames['ML'][databaseName]['dbName']
+        k=getDataBaseNames['ML']
+        metricsData[ databaseName]= await get_db_metrics(db_name)
+    print("Metrics Data: ", metricsData)
     match tab_name:
         case "Predictive_Temperature_Modeling":
             pass
@@ -151,7 +171,6 @@ async def dashboard(request: Request, tab_name: str):
         # case _:
         #     raise HTTPException(status_code=404, detail="Dashboard not found")
     print("Tab Name: ", tab_name)
-    print("Data  " , dataToReturn)
     return templates.TemplateResponse("./index.html", {"request": request, "dataForModels": [dataToReturn], "tab_name": tab_name, "topLeveltabs":topLeveltabs})
 
 

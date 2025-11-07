@@ -10,3 +10,4 @@ bcrypt==4.2.1
 python-dotenv==0.19.2
 requests==2.27.1
 passlib[argon2]==1.7.4
+ 

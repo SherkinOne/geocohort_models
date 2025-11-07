@@ -18,9 +18,6 @@ block page_content %}
   <div class="panel">
     <div class="tabs">
       <div class="tab active" data-tab="overall">Overall Comparison</div>
-      <div class="tab" data-tab="arima">ARIMA</div>
-      <div class="tab" data-tab="sarimax">SARIMAX</div>
-      <div class="tab" data-tab="lstm">LSTM</div>
        {% for tab in topLeveltabs %}
             <div class="tab" data-tab="{{ tab }}">{{ tab }}</div>
         {% endfor %}
