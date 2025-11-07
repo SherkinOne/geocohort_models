@@ -21,6 +21,9 @@ block page_content %}
       <div class="tab" data-tab="arima">ARIMA</div>
       <div class="tab" data-tab="sarimax">SARIMAX</div>
       <div class="tab" data-tab="lstm">LSTM</div>
+       {% for tab in topLeveltabs %}
+            <div class="tab" data-tab="{{ tab }}">{{ tab }}</div>
+        {% endfor %}
     </div>
     <div class="tabpanes">
 
@@ -56,6 +59,16 @@ block page_content %}
           <div class="card"><h3>LSTM — Metrics</h3><div id="metrics-lstm"></div></div>
         </div>
       </div>
+
+        {% for tab in topLeveltabs %}
+           
+          <div class="pane" data-pane="{{ tab }}">
+        <div class="grid">
+          <div class="card full"><h3>{{ tab }}</h3><div class="chart" id="chart-lstm"></div></div>
+          <div class="card"><h3>LSTM — Metrics</h3><div id="metrics-lstm"></div></div>
+        </div>
+      </div>
+        {% endfor %}
 
     </div>
   </div>

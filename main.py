@@ -67,7 +67,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # 'mongodb://heatSyncWebPlatform:h3atsync2024@52.17.206.238/eol_sensors');
 
-# Password hashing setup
+# Password  hashing setup
 # pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -124,6 +124,9 @@ async def dashboard(request: Request, tab_name: str):
     # so should be a swtich and return the data to the template
     print("Here")
     dataToReturn = getTimeSeriesDemoData()
+    ## get the top level tabs
+
+    topLeveltabs = ["Predictive_Temperature_Modeling"]
     match tab_name:
         case "Predictive_Temperature_Modeling":
             pass
@@ -149,7 +152,7 @@ async def dashboard(request: Request, tab_name: str):
         #     raise HTTPException(status_code=404, detail="Dashboard not found")
     print("Tab Name: ", tab_name)
     print("Data  " , dataToReturn)
-    return templates.TemplateResponse("./index.html", {"request": request, "dataForModels": [dataToReturn], "tab_name": tab_name})
+    return templates.TemplateResponse("./index.html", {"request": request, "dataForModels": [dataToReturn], "tab_name": tab_name, "topLeveltabs":topLeveltabs})
 
 
 
