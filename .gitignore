@@ -1,3 +1,26 @@
-*_pycache_*
-.venv
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Environment variable/config files
 .env
+.env.*
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Docker & build artifacts (if using Docker)
+*.db
+*.pid
+*.egg-info/
+dist/
+build/
+*.lock
