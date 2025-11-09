@@ -2,188 +2,195 @@
 block page_content %}
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
-<link rel="stylesheet" href="../static/css/heatsyncmodels.css" rel="stylesheet" />
+<link
+  rel="stylesheet"
+  href="../static/css/heatsyncmodels.css"
+  rel="stylesheet"
+/>
 <script>
   // Convert Python data to JavaScript variable
-  const DATA = {{ dataForModels[0] | tojson }};
+  const GRAPHMETRICSDATA = {{ dataForModels[0] | tojson }};
+  const KDATA = {{ kdata | tojson }};
+  const tabName = "{{ tab_name }}";
 </script>
 <script src="../static/js/index.js"></script>
-            <!-- ============================================================== -->
-            <!-- Start right Content here -->
-            <!-- ============================================================== -->
-            <div class="main-content">
-
-                <div class="page-content">
-                    <div class="container">
-  <div class="panel">
-    <div class="tabs">
-      <div class="tab active" data-tab="overall">Overall Comparison</div>
-       {% for tab in topLeveltabs %}
-            <div class="tab" data-tab="{{ tab }}">{{ tab }}</div>
-        {% endfor %}
-    </div>
-    <div class="tabpanes">
-
-      <div class="pane" data-pane="overall" style="display:block">
-        <div class="grid">
-          <div class="card"><h3>RMSE by Model</h3><br /><p><strong>Root Mean Squared Error (RMSE)</strong> — This chart shows the square root of the average squared difference between model predictions and actual temperatures. It penalises larger errors more heavily, so lower bars indicate a model that is both accurate and stable. Compare models directly: the shortest bar has the best overall fit in terms of RMS deviation.</p></br /><div class="chart" id="chart-rmse"></div></div>
-          <div class="card"><h3>MAE by Model</h3><br /><p><strong>Mean Absolute Error (MAE)</strong> — This chart displays the average absolute difference between predictions and actual values. It treats all errors linearly (no extra penalty for big misses), making it easy to interpret in the original units (°C). Lower is better; the lowest bar is the most consistently accurate model.</p></br /><div class="chart" id="chart-mae"></div></div>
-          <div class="card"><h3>R² by Model</h3><br /><p><strong>Coefficient of Determination (R²)</strong> — This chart indicates how much variance in the actual data is explained by the model (from 0 to 1, sometimes negative if the model performs worse than a constant mean). Higher is better; taller bars mean the model captures more of the temperature dynamics.</p></br /><div class="chart" id="chart-r2"></div></div>
-          <div class="card"><h3>MAPE (%) by Model</h3><br /><p><strong>Mean Absolute Percentage Error (MAPE)</strong> — This chart shows the average error as a percentage of the actual value, providing a unitless, scale-free metric that’s easy to compare across datasets. Lower is better; shorter bars reflect smaller typical percentage errors across the forecast horizon.</p></br /><div class="chart" id="chart-mape"></div></div>
-          <div class="card"><h3>Elbow Chart (Inertia vs k)</h3><br /><p><strong>Elbow Chart</strong> — This line chart helps identify the optimal number of clusters for pattern discovery. Inertia (the within-cluster sum of squared distances) decreases as k increases. The "elbow" point—where the curve starts to flatten—indicates the balance between model simplicity and data fit.</p></br /><div class="chart" id="chart-elbow"></div></div>
-          <div class="card"><h3>Silhouette Score vs k</h3><br /><p><strong>Silhouette Score</strong> — This line chart measures how well each data point fits within its assigned cluster compared to other clusters (range −1 to 1). Higher scores indicate well-separated, compact clusters. The peak silhouette value helps identify the ideal number of clusters (k) for clear, interpretable groupings.</p></br /><div class="chart" id="chart-silhouette"></div></div>
-          <div class="card full"><h3>Scores Table</h3><div class="table-wrap"><table id="scores-table"></table></div></div>
+<!-- ============================================================== -->
+<!-- Start right Content here -->
+<!-- ============================================================== -->
+<div class="main-content">
+  <div class="page-content">
+    <div class="container">
+      <div class="panel">
+        <div class="tabs">
+          <div class="tab active" data-tab="overall">Overall Comparison</div>
+          {% for tab in topLeveltabs %}
+          <div class="tab" data-tab="{{ tab }}">{{ tab }}</div>
+          {% endfor %}
         </div>
-      </div>
+        <div class="tabpanes">
+          <div class="pane" data-pane="overall" style="display:block">
+            <div class="grid">
+              <div class="card"><h3>RMSE by Model</h3><br /><p><strong>Root Mean Squared Error (RMSE)</strong> — This chart shows the square root of the average squared difference between model predictions and actual temperatures. It penalises larger errors more heavily, so lower bars indicate a model that is both accurate and stable. Compare models directly: the shortest bar has the best overall fit in terms of RMS deviation.</p></br /><div class="chart" id="chart-rmse"></div></div>
+              <div class="card"><h3>MAE by Model</h3><br /><p><strong>Mean Absolute Error (MAE)</strong> — This chart displays the average absolute difference between predictions and actual values. It treats all errors linearly (no extra penalty for big misses), making it easy to interpret in the original units (°C). Lower is better; the lowest bar is the most consistently accurate model.</p></br /><div class="chart" id="chart-mae"></div></div>
+              <div class="card"><h3>R² by Model</h3><br /><p><strong>Coefficient of Determination (R²)</strong> — This chart indicates how much variance in the actual data is explained by the model (from 0 to 1, sometimes negative if the model performs worse than a constant mean). Higher is better; taller bars mean the model captures more of the temperature dynamics.</p></br /><div class="chart" id="chart-r2"></div></div>
+              <div class="card"><h3>MAPE (%) by Model</h3><br /><p><strong>Mean Absolute Percentage Error (MAPE)</strong> — This chart shows the average error as a percentage of the actual value, providing a unitless, scale-free metric that’s easy to compare across datasets. Lower is better; shorter bars reflect smaller typical percentage errors across the forecast horizon.</p></br /><div class="chart" id="chart-mape_pct"></div></div>
+              <div class="card"><h3>Elbow Chart (Inertia vs k)</h3><br /><p><strong>Elbow Chart</strong> — This line chart helps identify the optimal number of clusters for pattern discovery. Inertia (the within-cluster sum of squared distances) decreases as k increases. The "elbow" point—where the curve starts to flatten—indicates the balance between model simplicity and data fit.</p></br /><div class="chart" id="chart-elbow"></div></div>
+              <div class="card"><h3>Silhouette Score vs k</h3><br /><p><strong>Silhouette Score</strong> — This line chart measures how well each data point fits within its assigned cluster compared to other clusters (range −1 to 1). Higher scores indicate well-separated, compact clusters. The peak silhouette value helps identify the ideal number of clusters (k) for clear, interpretable groupings.</p></br /><div class="chart" id="chart-silhouette"></div></div>
+              <div class="card full"><h3>Scores Table</h3><div class="table-wrap"><table id="scores-table"></table></div></div>
+            </div>
+          </div>
 
-      <div class="pane" data-pane="arima">
-        <div class="grid">
-          <div class="card full"><h3>ARIMA — Actual vs Prediction</h3><div class="chart" id="chart-arima"></div></div>
-          <div class="card"><h3>ARIMA — Metrics</h3><div id="metrics-arima"></div></div>
-        </div>
-      </div>
+          <div class="pane" data-pane="arima">
+            <div class="grid">
+              <div class="card full"><h3>ARIMA — Actual vs Prediction</h3><div class="chart" id="chart-arima"></div></div>
+              <div class="card"><h3>ARIMA — Metrics</h3><div id="metrics-arima"></div></div>
+            </div>
+          </div>
 
-      <div class="pane" data-pane="sarimax">
-        <div class="grid">
-          <div class="card full"><h3>SARIMAX — Actual vs Prediction</h3><div class="chart" id="chart-sarimax"></div></div>
-          <div class="card"><h3>SARIMAX — Metrics</h3><div id="metrics-sarimax"></div></div>
-        </div>
-      </div>
+          <div class="pane" data-pane="sarimax">
+            <div class="grid">
+              <div class="card full"><h3>SARIMAX — Actual vs Prediction</h3><div class="chart" id="chart-sarimax"></div></div>
+              <div class="card"><h3>SARIMAX — Metrics</h3><div id="metrics-sarimax"></div></div>
+            </div>
+          </div>
 
-      <div class="pane" data-pane="lstm">
-        <div class="grid">
-          <div class="card full"><h3>LSTM — Actual vs Prediction</h3><div class="chart" id="chart-lstm"></div></div>
-          <div class="card"><h3>LSTM — Metrics</h3><div id="metrics-lstm"></div></div>
-        </div>
-      </div>
+          <div class="pane" data-pane="lstm">
+            <div class="grid">
+              <div class="card full"><h3>LSTM — Actual vs Prediction</h3><div class="chart" id="chart-lstm"></div></div>
+              <div class="card"><h3>LSTM — Metrics</h3><div id="metrics-lstm"></div></div>
+            </div>
+          </div>
 
-        {% for tab in topLeveltabs %}
-           
+          {% for tab in topLeveltabs %}
+
           <div class="pane" data-pane="{{ tab }}">
-        <div class="grid">
-          <div class="card full"><h3>{{ tab }}</h3><div class="chart" id="chart-lstm"></div></div>
-          <div class="card"><h3>LSTM — Metrics</h3><div id="metrics-lstm"></div></div>
-        </div>
-      </div>
-        {% endfor %}
+            <div class="grid">
+              <div class="card full">
+                <h3>{{ tab }}</h3>
+                <div class="chart" ></div>
+              </div>
+              <div class="card">
+                <h3>{{ tab }}  Metrics</h3>
+                <div class="metrics-list"></div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+      
+        <div class="pane" data-pane="overall" style="display: block">
+          <h4 class="card-title">Energy Usage Overview</h4>
 
+          <table
+            id="datatable-buttons"
+            class="table table-bordered table-sm dt-responsive nowrap w-100"
+          >
+            <thead class="table-light">
+              <tr>
+                <th>ID</th>
+                <th>Date</th>
+                <th>Average kW</th>
+                <th>Maximum kW</th>
+                <th>Minimum kW</th>
+                <th>Total kWh</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>November 2024</td>
+                <td>231.7</td>
+                <td>436.8</td>
+                <td>151.3</td>
+                <td>44,234.4</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>October 2024</td>
+                <td>245.6</td>
+                <td>512.5</td>
+                <td>211.8</td>
+                <td>45,212.3</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>September 2024</td>
+                <td>255.2</td>
+                <td>425.6</td>
+                <td>125.2</td>
+                <td>37,293.3</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>August 2024</td>
+                <td>235.7</td>
+                <td>527.3</td>
+                <td>196.8</td>
+                <td>42,562.4</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>July 2024</td>
+                <td>301.1</td>
+                <td>563.5</td>
+                <td>262.8</td>
+                <td>46,311.3</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>June 2024</td>
+                <td>215.6</td>
+                <td>482.2</td>
+                <td>131.4</td>
+                <td>39,110.1</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>May 2024</td>
+                <td>225.6</td>
+                <td>482.2</td>
+                <td>175.2</td>
+                <td>35,119.3</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>April 2024</td>
+                <td>301.1</td>
+                <td>489.1</td>
+                <td>263.8</td>
+                <td>44,725.6</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>March 2024</td>
+                <td>285.1</td>
+                <td>614.5</td>
+                <td>220.2</td>
+                <td>42,972.2</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>February 2024</td>
+                <td>217.2</td>
+                <td>479.1</td>
+                <td>143.2</td>
+                <td>39,741.1</td>
+              </tr>
+              <tr>
+                <td>BURIUR382W3RWE</td>
+                <td>January 2024</td>
+                <td>278.1</td>
+                <td>603.2</td>
+                <td>162.5</td>
+                <td>42,841.6</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- end main content-->
+      </div>  </div>
     </div>
   </div>
-  <footer>HeatSync Demo • D3.js • Blue palette • No external UI frameworks</footer>
 </div>
 
-
-</div>
-                       </div>
-        
-                                        <h4 class="card-title">Energy Usage Overview</h4>
-        
-                                        <table id="datatable-buttons" class="table table-bordered table-sm dt-responsive nowrap w-100">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>ID</th>
-                                                    <th>Date</th>
-                                                    <th>Average kW</th>
-                                                    <th>Maximum kW</th>
-                                                    <th>Minimum kW</th>
-                                                    <th>Total kWh</th>
-                                                </tr>
-                                            </thead>
-
-                                            <tbody>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>November 2024</td>
-                                                    <td>231.7</td>
-                                                    <td>436.8</td>
-                                                    <td>151.3</td>
-                                                    <td>44,234.4</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>October 2024</td>
-                                                    <td>245.6</td>
-                                                    <td>512.5</td>
-                                                    <td>211.8</td>
-                                                    <td>45,212.3</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>September 2024</td>
-                                                    <td>255.2</td>
-                                                    <td>425.6</td>
-                                                    <td>125.2</td>
-                                                    <td>37,293.3</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>August 2024</td>
-                                                    <td>235.7</td>
-                                                    <td>527.3</td>
-                                                    <td>196.8</td>
-                                                    <td>42,562.4</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>July 2024</td>
-                                                    <td>301.1</td>
-                                                    <td>563.5</td>
-                                                    <td>262.8</td>
-                                                    <td>46,311.3</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>June 2024</td>
-                                                    <td>215.6</td>
-                                                    <td>482.2</td>
-                                                    <td>131.4</td>
-                                                    <td>39,110.1</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>May 2024</td>
-                                                    <td>225.6</td>
-                                                    <td>482.2</td>
-                                                    <td>175.2</td>
-                                                    <td>35,119.3</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>April 2024</td>
-                                                    <td>301.1</td>
-                                                    <td>489.1</td>
-                                                    <td>263.8</td>
-                                                    <td>44,725.6</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>March 2024</td>
-                                                    <td>285.1</td>
-                                                    <td>614.5</td>
-                                                    <td>220.2</td>
-                                                    <td>42,972.2</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>February 2024</td>
-                                                    <td>217.2</td>
-                                                    <td>479.1</td>
-                                                    <td>143.2</td>
-                                                    <td>39,741.1</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>BURIUR382W3RWE</td>
-                                                    <td>January 2024</td>
-                                                    <td>278.1</td>
-                                                    <td>603.2</td>
-                                                    <td>162.5</td>
-                                                    <td>42,841.6</td>
-                                                </tr>
-                                            </tbody>
-        
-                                         
-               
-            <!-- end main content-->
-
-        </div>
 {% endblock %}

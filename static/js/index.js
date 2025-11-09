@@ -1,21 +1,27 @@
 const BLUE = ["#1F5A99", "#2E7BCB", "#3C8DE6", "#93C5FD", "#0A2540"];
 
-function barChart_org(sel, rows, xKey, yKey, title) {
-  const el = d3.select(sel);
+
+//creates a bar chart for the overall screen
+function barChart(tabID, rows, xKey, yKey) {
+  const el = d3.select(tabID);
   el.selectAll("*").remove();
+
   const width = el.node().clientWidth || 600,
     height = el.node().clientHeight || 300;
+
   const m = { top: 18, right: 24, bottom: 60, left: 64 };
   const x = d3
     .scaleBand()
     .domain(rows.map((d) => d[xKey]))
     .range([m.left, width - m.right])
     .padding(0.25);
+
   const y = d3
     .scaleLinear()
     .domain([0, d3.max(rows, (d) => +d[yKey])])
     .nice()
     .range([height - m.bottom, m.top]);
+
   const svg = el.append("svg").attr("width", width).attr("height", height);
   svg
     .selectAll("rect")
@@ -37,66 +43,15 @@ function barChart_org(sel, rows, xKey, yKey, title) {
     .append("g")
     .attr("transform", `translate(${m.left},0)`)
     .call(d3.axisLeft(y));
-  svg
-    .append("text")
-    .attr("x", m.left)
-    .attr("y", m.top - 6)
-    .attr("fill", BLUE[4])
-    .attr("font-weight", 700)
-    .text(title || "");
+  // svg
+  //   .append("text")
+  //   .attr("x", m.left)
+  //   .attr("y", m.top - 6)
+  //   .attr("fill", BLUE[4])
+  //   .attr("font-weight", 700)
+  //   .text(title || "");
 }
-
-function barChart(sel, rows, xKey, yKey, title) {
-  const el = d3.select(sel);
-  el.selectAll("*").remove();
-
-  const width = el.node().clientWidth || 600,
-        height = el.node().clientHeight || 300;
-
-  const m = { top: 18, right: 24, bottom: 60, left: 64 };
-  const x = d3
-    .scaleBand()
-    .domain(rows.map(d => d[xKey]))
-    .range([m.left, width - m.right])
-    .padding(0.25);
-
-  const y = d3
-    .scaleLinear()
-    .domain([0, d3.max(rows, d => +d[yKey])])
-    .nice()
-    .range([height - m.bottom, m.top]);
-
-  const svg = el.append("svg").attr("width", width).attr("height", height);
-  svg
-    .selectAll("rect")
-    .data(rows)
-    .join("rect")
-    .attr("x", d => x(d[xKey]))
-    .attr("y", d => y(d[yKey]))
-    .attr("width", x.bandwidth())
-    .attr("height", d => y(0) - y(d[yKey]))
-    .attr("fill", (d, i) => BLUE[i % BLUE.length]);
-      svg
-    .append("g")
-    .attr("transform", `translate(0,${height - m.bottom})`)
-    .call(d3.axisBottom(x))
-    .selectAll("text")
-    .attr("transform", "rotate(-18)")
-    .style("text-anchor", "end");
-  svg
-    .append("g")
-    .attr("transform", `translate(${m.left},0)`)
-    .call(d3.axisLeft(y));
-  svg
-    .append("text")
-    .attr("x", m.left)
-    .attr("y", m.top - 6)
-    .attr("fill", BLUE[4])
-    .attr("font-weight", 700)
-    .text(title || "");
-}
- 
-
+// creates the line charts for the k scores and silhouette scores
 function lineChart(sel, rows, xKey, yKey, title) {
   const el = d3.select(sel);
   el.selectAll("*").remove();
@@ -140,30 +95,73 @@ function lineChart(sel, rows, xKey, yKey, title) {
     .attr("font-weight", 700)
     .text(title || "");
 }
-function renderScoresTable(sel, scores) {
-  const el = d3.select(sel);
-  el.selectAll("*").remove();
-  const cols = ["model", "MAE", "RMSE", "R2", "MAPE_pct"];
-  const table = el.append("table");
-  const thead = table.append("thead").append("tr");
-  cols.forEach((c) => thead.append("th").text(c));
-  const tbody = table.append("tbody");
-  scores.forEach(function (r) {
-    const tr = tbody.append("tr");
-    cols.forEach(function (c) {
-      tr.append("td").text(c === "model" ? r[c] : fmt(r[c]));
-    });
+
+//creates the table for the scores on the overall page
+function renderScoresTable() {
+  const table = document.getElementById("scores-table");
+
+  const tableHeader = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+
+  // Add "Model" header
+  const thModel = document.createElement("th");
+  thModel.textContent = "Model";
+  headerRow.appendChild(thModel);
+
+  // Add metric headers
+  const metricNames = Object.keys(GRAPHMETRICSDATA); // ["MAE", "MAPE_pct", "R2", "RMSE"]
+  metricNames.forEach((metric) => {
+    const th = document.createElement("th");
+    th.textContent = metric;
+    headerRow.appendChild(th);
   });
+  tableHeader.appendChild(headerRow);
+  table.appendChild(tableHeader);
+
+  const tableBody = document.createElement("tbody");
+
+  // Get all model names (assumes all metric arrays have same model order and count)
+  const models = GRAPHMETRICSDATA[metricNames[0]].map((item) => item.category);
+
+  models.forEach((modelName) => {
+    const row = document.createElement("tr");
+    // Model name cell
+    const tdModel = document.createElement("td");
+    tdModel.textContent = modelName;
+    row.appendChild(tdModel);
+
+    // Metric value cells
+    metricNames.forEach((metric) => {
+      const metricArr = GRAPHMETRICSDATA[metric];
+      const found = metricArr.find((item) => item.category === modelName);
+      const tdMetric = document.createElement("td");
+      tdMetric.textContent = found ? found.value : "";
+      row.appendChild(tdMetric);
+    });
+
+    tableBody.appendChild(row);
+  });
+  table.appendChild(tableBody);
 }
+
+// This renders series for the individual model tabs
 function renderSeries(sel, rows, title) {
   const el = d3.select(sel);
-  el.selectAll("*").remove();
+  // el.selectAll("*").remove();
   const width = el.node().clientWidth || 900,
     height = el.node().clientHeight || 300;
   const m = { top: 18, right: 24, bottom: 40, left: 56 };
+  keyNames = Object.keys(rows[0]);
+  const substring = 'time';
+keyNames = keyNames.filter(item => !item.includes(substring));
   const data = rows.map(function (p) {
-    return { t: new Date(p.time), actual: p.actual, pred: p.temperature_C };
+    return {
+      t: new Date(p.time),
+      actual: p[keyNames[1]],
+      pred: p[keyNames[0]],
+    };
   });
+  console.log("DATA FOR RENDER SERIES ", data);
   const x = d3
     .scaleTime()
     .domain(d3.extent(data, (d) => d.t))
@@ -247,6 +245,8 @@ function renderSeries(sel, rows, title) {
     .text("Prediction")
     .attr("font-size", "12px");
 }
+
+// I have no idea what this does
 function metricPills(sel, m) {
   d3.select(sel).html(
     '<span class="pill">MAE: ' +
@@ -263,107 +263,54 @@ function metricPills(sel, m) {
       "%</span>"
   );
 }
+
+// this is called on the overall page to render all the charts and table when the doc loads
 function renderOverall() {
-  const S = DATA.scores;
-  const data = [
-  { category: "A", value: 23 },
-  { category: "B", value: 32 },
-  { category: "C", value: 10 }
-];
-  barChart(
-    "#chart-rmse",
-  data, "category", "value", "My Chart");
-  // barChart(
-  //   "#chart-mae",
-  //   S.map(function (d) {
-  //     return { model: d.model, val: d.MAE };
-  //   }),
-  //   "model",
-  //   "val",
-  //   "MAE by Model"
-  // );
-  // barChart(
-  //   "#chart-r2",
-  //   S.map(function (d) {
-  //     return { model: d.model, val: d.R2 };
-  //   }),
-  //   "model",
-  //   "val",
-  //   "R² by Model"
-  // );
-  // barChart(
-  //   "#chart-mape",
-  //   S.map(function (d) {
-  //     return { model: d.model, val: d.MAPE_pct };
-  //   }),
-  //   "model",
-  //   "val",
-  //   "MAPE (%) by Model"
-  // );
+  // split GRAPHMETRICSDATA
+  for (key in GRAPHMETRICSDATA) {
+    barChart(
+      "#chart-" + key.toLowerCase(),
+      GRAPHMETRICSDATA[key],
+      "category",
+      "value"
+    );
+  }
+
   lineChart(
     "#chart-elbow",
-    DATA.elbow.map(function (e) {
+    KDATA.elbow.map(function (e) {
       return { k: +e.k, inertia: +e.inertia };
     }),
     "k",
     "inertia",
     "Elbow (Inertia vs k)"
   );
+
   lineChart(
     "#chart-silhouette",
-    DATA.silhouette.map(function (s) {
+    KDATA.silhouette.map(function (s) {
       return { k: +s.k, silhouette: +s.silhouette };
     }),
     "k",
     "silhouette",
     "Silhouette vs k"
   );
-  renderScoresTable("#scores-table", DATA.scores);
+  renderScoresTable();
 }
-function renderModels() {
-  function findModel(prefix) {
-    for (var i = 0; i < DATA.results.length; i++) {
-      if (DATA.results[i].model.indexOf(prefix) === 0) return DATA.results[i];
-    }
-    return null;
-  }
-  var ar = findModel("ARIMA");
-  if (ar) {
-    renderSeries("#chart-arima", ar.predictions, ar.model);
-    metricPills("#metrics-arima", ar.metrics);
-  }
-  var sx = findModel("SARIMAX");
-  if (sx) {
-    renderSeries("#chart-sarimax", sx.predictions, sx.model);
-    metricPills("#metrics-sarimax", sx.metrics);
-  }
-  var ls = findModel("LSTM");
-  if (ls) {
-    renderSeries("#chart-lstm", ls.predictions, ls.model);
-    metricPills("#metrics-lstm", ls.metrics);
-  }
-}
-function renderAll() {
-  var visiblePane = document.querySelector('.pane[style*="display: block"]');
-  var key = visiblePane ? visiblePane.getAttribute("data-pane") : "overall";
-  if (key === "overall") renderOverall();
-  else renderModels();
-}
-function fmt(x) {
+ function fmt(x) {
   return x == null || Number.isNaN(x)
     ? "—"
     : typeof x === "number"
     ? Math.round(x * 1000) / 1000
     : x;
 }
-window.addEventListener("resize", renderAll);
+// window.addEventListener("resize", renderAll);
 
 document.addEventListener("DOMContentLoaded", function () {
   // Your function here
-  console.log("DATA ", DATA);
-  renderAll();
+  // console.log("DATA ", GRAPHMETRICSDATA);
+  renderOverall();
   document.querySelectorAll(".tab").forEach(function (tab) {
-    console.log("Tab ", tab);
     tab.addEventListener("click", function () {
       document.querySelectorAll(".tab").forEach(function (t) {
         t.classList.remove("active");
@@ -371,10 +318,46 @@ document.addEventListener("DOMContentLoaded", function () {
       tab.classList.add("active");
       var key = tab.getAttribute("data-tab");
       document.querySelectorAll(".pane").forEach(function (p) {
-        p.style.display =
-          p.getAttribute("data-pane") === key ? "block" : "none";
+        if (p.getAttribute("data-pane") === key) {
+          p.style.display = "block";
+          console.log("key ", key);
+          let greatGrandChild = p.querySelector(
+            "div > .grid > .card > .chart "
+          );
+          let keyID = key.replace(/ /g, "_");
+          if (greatGrandChild) {
+            console.log("Found great grand child: ", greatGrandChild);
+            if (!greatGrandChild.hasAttribute("id")) {
+              greatGrandChild.setAttribute("id", "chart-" + keyID);
+              const formData = new FormData();
+              formData.append("graphType", tab.getAttribute("data-tab"));
+              formData.append("activePage", tabName);
+              console.log(formData);
+              fetch("/get_graph_data", {
+                method: "POST",
+                body: formData,
+              })
+                .then((response) => {
+                  if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                  }
+                  return response.json(); // ← parses the body as JSON
+                })
+                .then((data) => {
+                  keyID = "#chart-" + keyID;
+                  renderSeries(keyID, data.results, "Graph for ");
+                });
+              // .catch((error) => {
+              //   console.error("Fetch error:", error);
+              // });
+            }
+          }
+        } else {
+          p.style.display = "none";
+        }
       });
-      renderAll();
+
+      // renderAll();
     });
   });
 });

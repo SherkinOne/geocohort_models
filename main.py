@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Form, Request, Depends, HTTPException
+from fastapi import FastAPI, Form, Request, Depends, HTTPException, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import HTMLResponse, JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -10,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi import Request
 # from PIL import Image
 # from enum import Enum
+from bson import json_util
 import os
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -46,7 +49,6 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 MONGODB_URI = os.getenv("MONGODB_CONNECTION_URI")
-print("MONGODB_URI: ", MONGODB_URI)
 client = AsyncIOMotorClient(MONGODB_URI)
 geoCohortDBClient = client["Geocohort"]
 
@@ -116,13 +118,15 @@ async def get_keys_for_tabs(tab_name) :
         }
     }
 ]).to_list(length=None)
-    return keys[0]['mlkeys']
+    if keys is not None and 'mlkeys' in keys[0]:
+        return keys[0]['mlkeys']    
+    print("No keys found")
+    return []
 
 async def  get_db_names(tab_name) :
     overallDB= geoCohortDBClient["Overall"]
     toMatch=  {'Name':  tab_name}
     dbList = await overallDB.find_one(toMatch, {"ML": 1, "_id": 0})
-    print ("DB LIST: ", dbList)
     return dbList
 
 async def  get_db_metrics(db_name) :
@@ -136,44 +140,22 @@ async def  get_db_metrics(db_name) :
 @app.get("/dashboard/{tab_name}")
 async def dashboard(request: Request, tab_name: str):
     # so should be a swtich and return the data to the template
-    dataToReturn = getTimeSeriesDemoData()
+    kDataToReturn = getTimeSeriesDemoData()
     ## get the top level tabs
-
-    topLeveltabs = await get_keys_for_tabs(tab_name)
     getDataBaseNames = await get_db_names(tab_name)
+    topLeveltabs = await get_keys_for_tabs(tab_name)
     metricsData = {}
     for databaseName in getDataBaseNames['ML']:
         db_name =  getDataBaseNames['ML'][databaseName]['dbName']
-        k=getDataBaseNames['ML']
         metricsData[ databaseName]= await get_db_metrics(db_name)
-    print("Metrics Data: ", metricsData)
-    match tab_name:
-        case "Predictive_Temperature_Modeling":
-            pass
-        case "Energy_Consumption_Forecasting":
-            pass
-        case "Comfort_Optimisation_Models":
-            pass
-        case "Anomaly_Detection_Models":
-            pass
-        case "Load_Balancing_Models":
-            pass
-        case "Behavioural_Change_Impact_Models":
-            pass  
-        case "Dynamic_Pricing_Optimisation_Models":
-            pass  
-        case "Predictive_Maintenance_Modeling":
-            pass
-        case "Energy_Efficiency_Profiling":
-            pass
-        case "Zone-Based_Load_Forecasting":
-            pass
-        # case _:
-        #     raise HTTPException(status_code=404, detail="Dashboard not found")
-    print("Tab Name: ", tab_name)
-    return templates.TemplateResponse("./index.html", {"request": request, "dataForModels": [dataToReturn], "tab_name": tab_name, "topLeveltabs":topLeveltabs})
-
-
+    metricsDataForGraph = {}
+    for model, metrics in metricsData.items():
+        for metric, value in metrics.items():
+            if metric not in metricsDataForGraph:
+                metricsDataForGraph[metric] = []
+            metricsDataForGraph[metric].append({'category': model, 'value': value})
+    #print( {"Data" : kDataToReturn,"dataForModels": [metricsDataForGraph], "tab_name": tab_name, "topLeveltabs":topLeveltabs})
+    return templates.TemplateResponse("./index.html", {"request": request, "kdata" : kDataToReturn,"dataForModels": [metricsDataForGraph], "tab_name": tab_name, "topLeveltabs":topLeveltabs})
 
 # Helpers
 def rand_normal(mean: float = 0.0, std_dev: float = 1.0) -> float:
@@ -216,43 +198,6 @@ def map3(times: List[str], actual: List[float], pred: List[float]) -> List[Dict[
 
 def getTimeSeriesDemoData():
 # Time series (last 24h, 15-min cadence)
-    points = 96
-    current_ts = int(time.time())
-    end_ts = current_ts - (current_ts % (15 * 60))
-    times = [datetime.fromtimestamp(end_ts - i * 900, tz=timezone.utc).isoformat() for i in reversed(range(points))]
-
-    actual = []
-    for t_str in times:
-        ts = datetime.fromisoformat(t_str).timestamp()
-        hour = datetime.utcfromtimestamp(ts).hour + datetime.utcfromtimestamp(ts).minute / 60.0
-        diurnal = 2.2 * math.sin(2.0 * math.pi * (hour - 14.0) / 24.0)
-        actual.append(round(20.0 + diurnal + rand_normal(0, 0.25), 3))
-
-
-    def make_pred(actual: List[float], bias: float, noise: float) -> List[float]:
-        return [round(v + bias + rand_normal(0, noise), 3) for v in actual]
-
-
-    pred_arima = make_pred(actual, 0.06, 0.25)
-    pred_sarimax = make_pred(actual, 0.02, 0.20)
-    pred_lstm = make_pred(actual, 0.01, 0.18)
-
-    met_arima = metrics(actual, pred_arima)
-    met_sarimax = metrics(actual, pred_sarimax)
-    met_lstm = metrics(actual, pred_lstm)
-
-    results = [
-        {"model": "ARIMA(2,1,2)", "metrics": met_arima, "predictions": map3(times, actual, pred_arima)},
-        {"model": "SARIMAX(1,1,1)x(1,0,1,60)", "metrics": met_sarimax, "predictions": map3(times, actual, pred_sarimax)},
-        {"model": "LSTM(w=24,h=1)", "metrics": met_lstm, "predictions": map3(times, actual, pred_lstm)}
-    ]
-
-    scores = [
-        {"model": results[0]["model"], **met_arima},
-        {"model": results[1]["model"], **met_sarimax},
-        {"model": results[2]["model"], **met_lstm}
-    ]
-
     elbow = []
     sil = []
     for k in range(2, 9):
@@ -260,14 +205,74 @@ def getTimeSeriesDemoData():
         silhouette = 0.4 + 0.25 * math.exp(-((k - 3.5) / 1.5) ** 2) + rand_normal(0, 0.01)
         elbow.append({"k": k, "inertia": round(max(100.0, inertia), 2)})
         sil.append({"k": k, "silhouette": round(min(0.99, max(0.2, silhouette)), 3)})
-
     payload = {
-        "job_id": "python-demo",
-        "family": "ptm",
-        "results": results,
-        "scores": scores,
         "elbow": elbow,
         "silhouette": sil
     }
-
     return payload
+
+
+@app.get("/get_db_names/{tab_name}")
+async def get_graph_data(tab_name: str, graph_name: str):
+    db_names = await get_db_names(tab_name)
+    print("Database Names: ", db_names)
+# ``  dbToGetDataFrom = geoCohortDBClient[db_names]
+    # Step 1: Find the maximum timestamp in the collection
+    # result = dbToGetDataFrom.aggregate([
+    #     {"$group": {"_id": None, "maxDate": {"$max": "$timestamp"}}}
+    # ])
+    # max_date_doc = next(result, None)
+    # if not max_date_doc or not max_date_doc['maxDate']:
+    #     print("No documents found")
+    # else:
+    #     max_timestamp = max_date_doc['maxDate']
+
+        # Step 2: Calculate the start and end of that day
+        # If `timestamp` is a datetime, truncate to midnight
+    #     start_of_day = datetime(max_timestamp.year, max_timestamp.month, max_timestamp.day)
+    #     end_of_day = start_of_day + timedelta(days=1)
+
+    #     # Step 3: Query for all docs within that day
+    #     # docs = list(collection.find({
+    #     #     "timestamp": {"$gte": start_of_day, "$lt": end_of_day}
+    #     # }))
+
+    #    # print(f"Found {len(docs)} documents for last day ({start_of_day.date()})")
+
+    #     # Optionally, display a few
+    #     for doc in docs[:3]:
+    #         print(doc)
+    return db_names
+ 
+@app.post("/get_graph_data", response_class=HTMLResponse)
+async def get_graph_data(request: Request, graphType: str = Form(...), activePage: str = Form(...)):
+    listOfDBs = await get_db_names(activePage)
+    dbForData = listOfDBs['ML'][graphType]['dbName']
+    print("DB for Data: ", dbForData)
+    dbToUSe= geoCohortDBClient[dbForData]
+    latest_doc = await dbToUSe.aggregate([
+    {
+        "$group": {
+            "_id": None,
+            "maxDate": {"$max": "$time"}
+        }
+    }
+]).to_list(length=None)
+    latest_date = latest_doc[0]['maxDate']
+    if latest_date:
+        latest_date = datetime.strptime(latest_date, "%Y-%m-%d %H:%M:%S%z")
+        # Set range for the day (assuming latest_date is a Python datetime object)
+        if latest_date.tzinfo is None:
+            latest_date = latest_date.replace(tzinfo=timezone.utc)
+        start_of_day = datetime(latest_date.year, latest_date.month, latest_date.day, tzinfo=timezone.utc)
+        # Fetch all docs for the latest full day
+        docs =await dbToUSe.find({
+            "time": {
+                "$gte": str(start_of_day)   ,
+            }
+        },{"_id": 0}).to_list(length=None)
+        print(docs)
+        # return json_util.dumps(docs)
+        return JSONResponse(content=jsonable_encoder({"results" : docs}), status_code=200)
+    return []
+   # return {"graphType": graphType, "activePage": activePage}
