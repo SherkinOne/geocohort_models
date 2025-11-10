@@ -1,6 +1,5 @@
 const BLUE = ["#1F5A99", "#2E7BCB", "#3C8DE6", "#93C5FD", "#0A2540"];
 
-
 //creates a bar chart for the overall screen
 function barChart(tabID, rows, xKey, yKey) {
   const el = d3.select(tabID);
@@ -96,6 +95,109 @@ function lineChart(sel, rows, xKey, yKey, title) {
     .text(title || "");
 }
 
+function renderScatterPlot(sel, data, title) {
+  // Data preparation
+  data.forEach((d) => {
+    d.timestamp = new Date(d.timestamp);
+    d.appliance_power_kW = +d.appliance_power_kW;
+  });
+  console.log("Data for Scatter Plot ", data);
+  // SVG setup
+  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+  const width = 800 - margin.left - margin.right;
+  const height = 300 - margin.top - margin.bottom;
+  const svg = d3
+    .select(sel)
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // X and Y scales
+  const x = d3
+    .scaleTime()
+    .domain(d3.extent(data, (d) => d.timestamp))
+    .range([0, width]);
+
+  const y = d3
+    .scaleLinear()
+    .domain(d3.extent(data, (d) => d.energy_kW))
+    .range([height, 0]);
+
+  // Axes
+  svg
+    .append("g")
+    .attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(x));
+  svg.append("g").call(d3.axisLeft(y));
+
+  // Circles for each data point
+  svg
+    .selectAll("circle")
+    .data(data)
+    .enter()
+    .append("circle")
+    .attr("cx", (d) => x(d.timestamp))
+    .attr("cy", (d) => y(d.appliance_power_kW))
+    .attr("r", 4)
+    .style("fill", "steelblue");
+}
+
+//renders heatmap for the individual model tabs
+function renderHeatmap(sel, data, title) {
+  const parsedData = data.map((d) => ({
+    x: new Date(d.timestamp).toISOString().split("T")[0], // Day
+    y: new Date(d.timestamp).getHours(), // Hour
+    value: d.decision_score,
+  }));
+
+  console.log("Parsed Data for Heatmap ", parsedData);
+  const margin = { top: 30, right: 20, bottom: 50, left: 60 },
+    width = 900 - margin.left - margin.right,
+    height = 450 - margin.top - margin.bottom;
+
+  const svg = d3
+    .select(sel)
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  const xGroups = Array.from(new Set(parsedData.map((d) => d.x)));
+  const yGroups = Array.from(new Set(parsedData.map((d) => d.y)));
+
+  const xScale = d3.scaleBand().domain(xGroups).range([0, width]).padding(0.05);
+
+  const yScale = d3
+    .scaleBand()
+    .domain(yGroups)
+    .range([0, height])
+    .padding(0.05);
+
+  const colorScale = d3
+    .scaleSequential()
+    .domain(d3.extent(parsedData, (d) => d.value))
+    .interpolator(d3.interpolateRdBu); // or any other
+
+  svg
+    .selectAll()
+    .data(parsedData, (d) => d.x + ":" + d.y)
+    .enter()
+    .append("rect")
+    .attr("x", (d) => xScale(d.x))
+    .attr("y", (d) => yScale(d.y))
+    .attr("width", xScale.bandwidth())
+    .attr("height", yScale.bandwidth())
+    .style("fill", (d) => colorScale(d.value));
+
+  svg
+    .append("g")
+    .attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(xScale));
+  svg.append("g").call(d3.axisLeft(yScale));
+}
+
 //creates the table for the scores on the overall page
 function renderScoresTable() {
   const table = document.getElementById("scores-table");
@@ -152,11 +254,11 @@ function renderSeries(sel, rows, title) {
     height = el.node().clientHeight || 300;
   const m = { top: 18, right: 24, bottom: 40, left: 56 };
   keyNames = Object.keys(rows[0]);
-  const substring = 'time';
-keyNames = keyNames.filter(item => !item.includes(substring));
+  const substring = "time";
+  keyNames = keyNames.filter((item) => !item.includes(substring));
   const data = rows.map(function (p) {
     return {
-      t: new Date(p.time),
+      t: new Date(p.timestamp),
       actual: p[keyNames[1]],
       pred: p[keyNames[0]],
     };
@@ -267,14 +369,53 @@ function metricPills(sel, m) {
 // this is called on the overall page to render all the charts and table when the doc loads
 function renderOverall() {
   // split GRAPHMETRICSDATA
-  for (key in GRAPHMETRICSDATA) {
-    barChart(
-      "#chart-" + key.toLowerCase(),
-      GRAPHMETRICSDATA[key],
-      "category",
-      "value"
-    );
-  }
+  console.log(
+    "GRAPHMETRICSDATA ",
+    GRAPHMETRICSDATA,
+    Object.keys(GRAPHMETRICSDATA).length
+  );
+  if (Object.keys(GRAPHMETRICSDATA).length > 0) {
+    const parent = document.getElementById("overallTabPane");
+    let htmlString = "";
+    switch (tabName) {
+      case "Load Balancing Models":
+      case "Behavioural Change Impact Models":
+      case "Dynamic Pricing Optimisation Models":
+      case "Anomaly Detection Models":
+        console.log("here")
+        htmlString = Anomaly_Detection_Models_html;
+        console.log(htmlString)
+        parent.insertAdjacentHTML("afterbegin", htmlString);
+        for (key in GRAPHMETRICSDATA) {
+          console.log(key -  GRAPHMETRICSDATA[key]);
+           barChart(
+            "#chart-" + key.toLowerCase(),
+            GRAPHMETRICSDATA[key],
+            "category",
+            "value"
+          );
+        }
+        // renderHeatmap(keyID, data.results, "Heatmap for ");
+        // renderScatterPlot(keyID, data.results, "Scatter Plot for ");
+        break;
+      case "Energy Consumption Forecasting":
+        console.log("Enery")
+        htmlString = energy_consumption_forecasting_html;
+        // Inserts HTML as the last child *within* overallTabPane
+        parent.insertAdjacentHTML("afterbegin", htmlString);
+        for (key in GRAPHMETRICSDATA) {
+          barChart(
+            "#chart-" + key.toLowerCase(),
+            GRAPHMETRICSDATA[key],
+            "category",
+            "value"
+          );
+        }
+        break;
+      default:
+    } // end of switch
+    renderScoresTable();
+  } // enfd of if
 
   lineChart(
     "#chart-elbow",
@@ -295,9 +436,9 @@ function renderOverall() {
     "silhouette",
     "Silhouette vs k"
   );
-  renderScoresTable();
+  // renderScoresTable();
 }
- function fmt(x) {
+function fmt(x) {
   return x == null || Number.isNaN(x)
     ? "—"
     : typeof x === "number"
@@ -326,7 +467,6 @@ document.addEventListener("DOMContentLoaded", function () {
           );
           let keyID = key.replace(/ /g, "_");
           if (greatGrandChild) {
-            console.log("Found great grand child: ", greatGrandChild);
             if (!greatGrandChild.hasAttribute("id")) {
               greatGrandChild.setAttribute("id", "chart-" + keyID);
               const formData = new FormData();
@@ -345,7 +485,21 @@ document.addEventListener("DOMContentLoaded", function () {
                 })
                 .then((data) => {
                   keyID = "#chart-" + keyID;
-                  renderSeries(keyID, data.results, "Graph for ");
+                  console.log("DATA FETCHED FOR TAB ", tabName);
+                  switch (tabName) {
+                    case "Load Balancing Models":
+                    case "Behavioural Change Impact Models":
+                    case "Dynamic Pricing Optimisation Models":
+                    case "Anomaly Detection Models":
+                      renderSeries(keyID, data.results, "Graph for ");
+                      // renderHeatmap(keyID, data.results, "Heatmap for ");
+                      // renderScatterPlot(keyID, data.results, "Scatter Plot for ");
+                      break;
+                    case "Energy Consumption Forecasting":
+                      renderSeries(keyID, data.results, "Graph for ");
+                      break;
+                    default:
+                  }
                 });
               // .catch((error) => {
               //   console.error("Fetch error:", error);

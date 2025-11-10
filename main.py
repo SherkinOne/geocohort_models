@@ -61,7 +61,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
+# this is actually irrelevant for CSP as we are not using any external auth- but keep for reference
 class CSPMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Skip CSP for static files
@@ -95,7 +95,7 @@ class CSPMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(CSPMiddleware)
 
-
+# this gets the top level tabs for a given tab name from overall DB
 async def get_keys_for_tabs(tab_name) :
     overallDB= geoCohortDBClient["Overall"]
     toMatch=  {
@@ -123,12 +123,14 @@ async def get_keys_for_tabs(tab_name) :
     print("No keys found")
     return []
 
+#get list of databases for a given tab name from overall DB
 async def  get_db_names(tab_name) :
     overallDB= geoCohortDBClient["Overall"]
     toMatch=  {'Name':  tab_name}
     dbList = await overallDB.find_one(toMatch, {"ML": 1, "_id": 0})
     return dbList
 
+# get metrics from a given database using energy model as example
 async def  get_db_metrics(db_name) :
     overallDB= geoCohortDBClient[db_name]
     dbList = await overallDB.find_one({}, {"metrics": 1, "_id": 0})
@@ -136,7 +138,17 @@ async def  get_db_metrics(db_name) :
         return dbList['metrics']
     else:
         return {}
+    
+# get metrics from a given database using anamolies
+async def  get_db_anomolies(db_name) :
+    overallDB= geoCohortDBClient[db_name]
+    dbList = await overallDB.find_one({}, {"anomaly_fraction":1, "anomaly_count":1 , "_id": 0})
+    if dbList is not None :
+        return dbList 
+    else:
+        return {}
 
+#load dashboard data relative t o tab name
 @app.get("/dashboard/{tab_name}")
 async def dashboard(request: Request, tab_name: str):
     # so should be a swtich and return the data to the template
@@ -145,15 +157,28 @@ async def dashboard(request: Request, tab_name: str):
     getDataBaseNames = await get_db_names(tab_name)
     topLeveltabs = await get_keys_for_tabs(tab_name)
     metricsData = {}
-    for databaseName in getDataBaseNames['ML']:
-        db_name =  getDataBaseNames['ML'][databaseName]['dbName']
-        metricsData[ databaseName]= await get_db_metrics(db_name)
+    print(tab_name)
+    match tab_name:
+        case "Energy Consumption Forecasting" :
+            for databaseName in getDataBaseNames['ML']:
+                db_name =  getDataBaseNames['ML'][databaseName]['dbName']
+                metricsData[ databaseName]= await get_db_metrics(db_name)
+            # metricsDataForGraph = {}
+            # for model, metrics in metricsData.items():
+            #     for metric, value in metrics.items():
+            #         if metric not in metricsDataForGraph:
+            #             metricsDataForGraph[metric] = []
+            #         metricsDataForGraph[metric].append({'category': model, 'value': value})
+        case "Anomaly Detection Models":
+            for databaseName in getDataBaseNames['ML']:
+                db_name =  getDataBaseNames['ML'][databaseName]['dbName']
+                metricsData[ databaseName]= await get_db_anomolies(db_name)
     metricsDataForGraph = {}
     for model, metrics in metricsData.items():
-        for metric, value in metrics.items():
-            if metric not in metricsDataForGraph:
-                metricsDataForGraph[metric] = []
-            metricsDataForGraph[metric].append({'category': model, 'value': value})
+         for metric, value in metrics.items():
+                    if metric not in metricsDataForGraph:
+                        metricsDataForGraph[metric] = []
+                    metricsDataForGraph[metric].append({'category': model, 'value': value})
     #print( {"Data" : kDataToReturn,"dataForModels": [metricsDataForGraph], "tab_name": tab_name, "topLeveltabs":topLeveltabs})
     return templates.TemplateResponse("./index.html", {"request": request, "kdata" : kDataToReturn,"dataForModels": [metricsDataForGraph], "tab_name": tab_name, "topLeveltabs":topLeveltabs})
 
@@ -164,7 +189,7 @@ def rand_normal(mean: float = 0.0, std_dev: float = 1.0) -> float:
     v = 1.0 - random.random()
     return mean + std_dev * math.sqrt(-2.0 * math.log(u)) * math.cos(2.0 * math.pi * v)
 
-
+#taken from php
 def metrics(y: List[float], yhat: List[float]) -> Dict[str, Union[float, Any]]:
     n = len(y)
     if n == 0:
@@ -196,6 +221,7 @@ def metrics(y: List[float], yhat: List[float]) -> Dict[str, Union[float, Any]]:
 def map3(times: List[str], actual: List[float], pred: List[float]) -> List[Dict[str, Any]]:
     return [{"time": times[i], "actual": actual[i], "temperature_C": pred[i]} for i in range(len(times))]
 
+#taken from php
 def getTimeSeriesDemoData():
 # Time series (last 24h, 15-min cadence)
     elbow = []
@@ -211,39 +237,14 @@ def getTimeSeriesDemoData():
     }
     return payload
 
-
+# API endpoint to get database names for a given tab - also this is redundant now
 @app.get("/get_db_names/{tab_name}")
 async def get_graph_data(tab_name: str, graph_name: str):
     db_names = await get_db_names(tab_name)
     print("Database Names: ", db_names)
-# ``  dbToGetDataFrom = geoCohortDBClient[db_names]
-    # Step 1: Find the maximum timestamp in the collection
-    # result = dbToGetDataFrom.aggregate([
-    #     {"$group": {"_id": None, "maxDate": {"$max": "$timestamp"}}}
-    # ])
-    # max_date_doc = next(result, None)
-    # if not max_date_doc or not max_date_doc['maxDate']:
-    #     print("No documents found")
-    # else:
-    #     max_timestamp = max_date_doc['maxDate']
-
-        # Step 2: Calculate the start and end of that day
-        # If `timestamp` is a datetime, truncate to midnight
-    #     start_of_day = datetime(max_timestamp.year, max_timestamp.month, max_timestamp.day)
-    #     end_of_day = start_of_day + timedelta(days=1)
-
-    #     # Step 3: Query for all docs within that day
-    #     # docs = list(collection.find({
-    #     #     "timestamp": {"$gte": start_of_day, "$lt": end_of_day}
-    #     # }))
-
-    #    # print(f"Found {len(docs)} documents for last day ({start_of_day.date()})")
-
-    #     # Optionally, display a few
-    #     for doc in docs[:3]:
-    #         print(doc)
     return db_names
  
+ # get graph data for a given graph type and active page
 @app.post("/get_graph_data", response_class=HTMLResponse)
 async def get_graph_data(request: Request, graphType: str = Form(...), activePage: str = Form(...)):
     listOfDBs = await get_db_names(activePage)
@@ -254,7 +255,7 @@ async def get_graph_data(request: Request, graphType: str = Form(...), activePag
     {
         "$group": {
             "_id": None,
-            "maxDate": {"$max": "$time"}
+            "maxDate": {"$max": "$timestamp"}
         }
     }
 ]).to_list(length=None)
@@ -266,8 +267,9 @@ async def get_graph_data(request: Request, graphType: str = Form(...), activePag
             latest_date = latest_date.replace(tzinfo=timezone.utc)
         start_of_day = datetime(latest_date.year, latest_date.month, latest_date.day, tzinfo=timezone.utc)
         # Fetch all docs for the latest full day
+        print("Start of day: ", start_of_day)
         docs =await dbToUSe.find({
-            "time": {
+            "timestamp": {
                 "$gte": str(start_of_day)   ,
             }
         },{"_id": 0}).to_list(length=None)
@@ -275,4 +277,3 @@ async def get_graph_data(request: Request, graphType: str = Form(...), activePag
         # return json_util.dumps(docs)
         return JSONResponse(content=jsonable_encoder({"results" : docs}), status_code=200)
     return []
-   # return {"graphType": graphType, "activePage": activePage}
