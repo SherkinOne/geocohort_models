@@ -118,6 +118,7 @@ async def get_keys_for_tabs(tab_name) :
         }
     }
 ]).to_list(length=None)
+    print("keys : ", keys)
     if keys is not None and 'mlkeys' in keys[0]:
         return keys[0]['mlkeys']    
     print("No keys found")
@@ -152,6 +153,7 @@ async def  get_db_anomolies(db_name) :
 @app.get("/dashboard/{tab_name}")
 async def dashboard(request: Request, tab_name: str):
     # so should be a swtich and return the data to the template
+    print(tab_name)
     kDataToReturn = getTimeSeriesDemoData()
     ## get the top level tabs
     getDataBaseNames = await get_db_names(tab_name)
@@ -245,7 +247,7 @@ async def get_graph_data(tab_name: str, graph_name: str):
     return db_names
  
  # get graph data for a given graph type and active page
-@app.post("/get_graph_data", response_class=HTMLResponse)
+@app.post("/dashboard/get_graph_data", response_class=HTMLResponse)
 async def get_graph_data(request: Request, graphType: str = Form(...), activePage: str = Form(...)):
     listOfDBs = await get_db_names(activePage)
     dbForData = listOfDBs['ML'][graphType]['dbName']
@@ -259,7 +261,9 @@ async def get_graph_data(request: Request, graphType: str = Form(...), activePag
         }
     }
 ]).to_list(length=None)
+    print(latest_doc)
     latest_date = latest_doc[0]['maxDate']
+    print("Latest data ", latest_date)
     if latest_date:
         latest_date = datetime.strptime(latest_date, "%Y-%m-%d %H:%M:%S%z")
         # Set range for the day (assuming latest_date is a Python datetime object)

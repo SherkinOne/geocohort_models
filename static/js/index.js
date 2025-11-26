@@ -369,26 +369,40 @@ function metricPills(sel, m) {
 // this is called on the overall page to render all the charts and table when the doc loads
 function renderOverall() {
   // split GRAPHMETRICSDATA
+   GRAPHMETRICSDATAs={"Karen":  1 }
   console.log(
     "GRAPHMETRICSDATA ",
     GRAPHMETRICSDATA,
     Object.keys(GRAPHMETRICSDATA).length
   );
-  if (Object.keys(GRAPHMETRICSDATA).length > 0) {
+ 
+  if (Object.keys(GRAPHMETRICSDATAs).length > 0) {
     const parent = document.getElementById("overallTabPane");
     let htmlString = "";
     switch (tabName) {
+      case "Comfort Optimisation Models":
+        console.log("Here for building a building!!")
+        htmlString =  Comfort_Optimisation_Models_html
+        // Inserts HTML as the last child *within* overallTabPane
+        console.log(htmlString)
+        parent.insertAdjacentHTML("afterbegin", htmlString);
+
+        // how add the building
+      //  buildHouse("#buildingCardID");
+        window.buildHouse("buildingCardID");
+
+        break;
       case "Load Balancing Models":
       case "Behavioural Change Impact Models":
       case "Dynamic Pricing Optimisation Models":
       case "Anomaly Detection Models":
-        console.log("here")
+        console.log("here");
         htmlString = Anomaly_Detection_Models_html;
-        console.log(htmlString)
+        console.log(htmlString);
         parent.insertAdjacentHTML("afterbegin", htmlString);
         for (key in GRAPHMETRICSDATA) {
-          console.log(key -  GRAPHMETRICSDATA[key]);
-           barChart(
+          console.log(key - GRAPHMETRICSDATA[key]);
+          barChart(
             "#chart-" + key.toLowerCase(),
             GRAPHMETRICSDATA[key],
             "category",
@@ -399,7 +413,6 @@ function renderOverall() {
         // renderScatterPlot(keyID, data.results, "Scatter Plot for ");
         break;
       case "Energy Consumption Forecasting":
-        console.log("Enery")
         htmlString = energy_consumption_forecasting_html;
         // Inserts HTML as the last child *within* overallTabPane
         parent.insertAdjacentHTML("afterbegin", htmlString);
@@ -473,7 +486,7 @@ document.addEventListener("DOMContentLoaded", function () {
               formData.append("graphType", tab.getAttribute("data-tab"));
               formData.append("activePage", tabName);
               console.log(formData);
-              fetch("/get_graph_data", {
+              fetch("get_graph_data", {
                 method: "POST",
                 body: formData,
               })
