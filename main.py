@@ -132,20 +132,29 @@ async def  get_db_names(tab_name) :
     return dbList
 
 # get metrics from a given database using energy model as example
-async def  get_db_metrics(db_name) :
+async def  Energy_Consumption_Forecasting_overview(db_name) :
     overallDB= geoCohortDBClient[db_name]
     dbList = await overallDB.find_one({}, {"metrics": 1, "_id": 0})
     if dbList is not None and 'metrics' in dbList:
         return dbList['metrics']
-    else:
+    else:   
         return {}
     
 # get metrics from a given database using anamolies
-async def  get_db_anomolies(db_name) :
+async def  Anomaly_Detection_Models_overview(db_name) :
     overallDB= geoCohortDBClient[db_name]
     dbList = await overallDB.find_one({}, {"anomaly_fraction":1, "anomaly_count":1 , "_id": 0})
     if dbList is not None :
         return dbList 
+    else:
+        return {}
+    
+async def Comfort_Optimisation_Models_overview(db_name) :
+    print("DB NAME: ", db_name)
+    overallDB= geoCohortDBClient[db_name]
+    dbList = await overallDB.find_one({}, {"diagnostics": 1 , "_id": 0})
+    if dbList is not None :
+        return dbList['diagnostics']['predicted_next_state']
     else:
         return {}
 
@@ -159,12 +168,11 @@ async def dashboard(request: Request, tab_name: str):
     getDataBaseNames = await get_db_names(tab_name)
     topLeveltabs = await get_keys_for_tabs(tab_name)
     metricsData = {}
-    print(tab_name)
     match tab_name:
         case "Energy Consumption Forecasting" :
             for databaseName in getDataBaseNames['ML']:
                 db_name =  getDataBaseNames['ML'][databaseName]['dbName']
-                metricsData[ databaseName]= await get_db_metrics(db_name)
+                metricsData[ databaseName]= await Energy_Consumption_Forecasting_overview(db_name)
             # metricsDataForGraph = {}
             # for model, metrics in metricsData.items():
             #     for metric, value in metrics.items():
@@ -174,7 +182,13 @@ async def dashboard(request: Request, tab_name: str):
         case "Anomaly Detection Models":
             for databaseName in getDataBaseNames['ML']:
                 db_name =  getDataBaseNames['ML'][databaseName]['dbName']
-                metricsData[ databaseName]= await get_db_anomolies(db_name)
+                metricsData[ databaseName]= await Anomaly_Detection_Models_overview(db_name)
+                
+        case "Comfort Optimisation Models" :
+            for databaseName in getDataBaseNames['ML']:
+                db_name =  getDataBaseNames['ML'][databaseName]['dbName']
+                metricsData[ databaseName]= await Comfort_Optimisation_Models_overview(db_name)
+    
     metricsDataForGraph = {}
     for model, metrics in metricsData.items():
          for metric, value in metrics.items():
@@ -243,15 +257,23 @@ def getTimeSeriesDemoData():
 @app.get("/get_db_names/{tab_name}")
 async def get_graph_data(tab_name: str, graph_name: str):
     db_names = await get_db_names(tab_name)
-    print("Database Names: ", db_names)
     return db_names
+
+# this is comfort optimisation data
+@app.post("/dashboard/get_ifc_data", response_class=HTMLResponse)
+async def get_graph_data(request: Request, graphType: str = Form(...), activePage: str = Form(...)):
+    listOfDBs = await get_db_names(activePage)
+    dbForData = listOfDBs['ML'][graphType]['dbName']
+    dbToUSe= geoCohortDBClient[dbForData]
+    comfort_data = await dbToUSe.find({}, {"comfort" : "$recommendations", "_id": 0}).to_list(length=None)
+        # return json_util.dumps(docs)
+    return JSONResponse(content=jsonable_encoder({"results" : comfort_data[0]}), status_code=200)
  
  # get graph data for a given graph type and active page
 @app.post("/dashboard/get_graph_data", response_class=HTMLResponse)
 async def get_graph_data(request: Request, graphType: str = Form(...), activePage: str = Form(...)):
     listOfDBs = await get_db_names(activePage)
     dbForData = listOfDBs['ML'][graphType]['dbName']
-    print("DB for Data: ", dbForData)
     dbToUSe= geoCohortDBClient[dbForData]
     latest_doc = await dbToUSe.aggregate([
     {
@@ -261,9 +283,7 @@ async def get_graph_data(request: Request, graphType: str = Form(...), activePag
         }
     }
 ]).to_list(length=None)
-    print(latest_doc)
     latest_date = latest_doc[0]['maxDate']
-    print("Latest data ", latest_date)
     if latest_date:
         latest_date = datetime.strptime(latest_date, "%Y-%m-%d %H:%M:%S%z")
         # Set range for the day (assuming latest_date is a Python datetime object)
@@ -271,13 +291,11 @@ async def get_graph_data(request: Request, graphType: str = Form(...), activePag
             latest_date = latest_date.replace(tzinfo=timezone.utc)
         start_of_day = datetime(latest_date.year, latest_date.month, latest_date.day, tzinfo=timezone.utc)
         # Fetch all docs for the latest full day
-        print("Start of day: ", start_of_day)
         docs =await dbToUSe.find({
             "timestamp": {
                 "$gte": str(start_of_day)   ,
             }
         },{"_id": 0}).to_list(length=None)
-        print(docs)
         # return json_util.dumps(docs)
         return JSONResponse(content=jsonable_encoder({"results" : docs}), status_code=200)
     return []

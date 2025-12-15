@@ -1,3 +1,4 @@
+import buildHouse from "./buildings.js";
 const BLUE = ["#1F5A99", "#2E7BCB", "#3C8DE6", "#93C5FD", "#0A2540"];
 
 //creates a bar chart for the overall screen
@@ -253,7 +254,7 @@ function renderSeries(sel, rows, title) {
   const width = el.node().clientWidth || 900,
     height = el.node().clientHeight || 300;
   const m = { top: 18, right: 24, bottom: 40, left: 56 };
-  keyNames = Object.keys(rows[0]);
+  let keyNames = Object.keys(rows[0]);
   const substring = "time";
   keyNames = keyNames.filter((item) => !item.includes(substring));
   const data = rows.map(function (p) {
@@ -369,38 +370,48 @@ function metricPills(sel, m) {
 // this is called on the overall page to render all the charts and table when the doc loads
 function renderOverall() {
   // split GRAPHMETRICSDATA
-   GRAPHMETRICSDATAs={"Karen":  1 }
   console.log(
     "GRAPHMETRICSDATA ",
     GRAPHMETRICSDATA,
     Object.keys(GRAPHMETRICSDATA).length
   );
- 
-  if (Object.keys(GRAPHMETRICSDATAs).length > 0) {
-    const parent = document.getElementById("overallTabPane");
+
+  if (Object.keys(GRAPHMETRICSDATA).length > 0) {
+    const grandparent = document.getElementById("metrics-main-content");
+    console.log(grandparent);
     let htmlString = "";
     switch (tabName) {
       case "Comfort Optimisation Models":
-        console.log("Here for building a building!!")
-        htmlString =  Comfort_Optimisation_Models_html
-        // Inserts HTML as the last child *within* overallTabPane
-        console.log(htmlString)
-        parent.insertAdjacentHTML("afterbegin", htmlString);
-
-        // how add the building
-      //  buildHouse("#buildingCardID");
-        window.buildHouse("buildingCardID");
-
+        grandparent.insertAdjacentHTML(
+          "afterbegin",
+          Comfort_Optimisation_Models_overview_html
+        );
+        // this is for hte other piece
+        // roofset = buildHouse("buildingCardID").then((roofset) => {;
+        // console.log("roofset ", roofset);
+        for (const key in GRAPHMETRICSDATA) {
+          barChart(
+            "#chart-" + key.toLowerCase(),
+            GRAPHMETRICSDATA[key],
+            "category",
+            "value"
+          );
+        }
         break;
       case "Load Balancing Models":
       case "Behavioural Change Impact Models":
       case "Dynamic Pricing Optimisation Models":
       case "Anomaly Detection Models":
-        console.log("here");
         htmlString = Anomaly_Detection_Models_html;
-        console.log(htmlString);
+        // Inserts HTML as the last child *within* overallTabPane
+        grandparent.insertAdjacentHTML(
+          "afterbegin",
+          mertric_scores_overview_html
+        );
+        parent = document.getElementById("overallTabPane");
+        // Inserts HTML as the last child *within* overallTabPane
         parent.insertAdjacentHTML("afterbegin", htmlString);
-        for (key in GRAPHMETRICSDATA) {
+        for (const key in GRAPHMETRICSDATA) {
           console.log(key - GRAPHMETRICSDATA[key]);
           barChart(
             "#chart-" + key.toLowerCase(),
@@ -415,8 +426,15 @@ function renderOverall() {
       case "Energy Consumption Forecasting":
         htmlString = energy_consumption_forecasting_html;
         // Inserts HTML as the last child *within* overallTabPane
+        grandparent.insertAdjacentHTML(
+          "afterbegin",
+          mertric_scores_overview_html
+        );
+        let parent = document.getElementById("overallTabPane");
+        // Inserts HTML as the last child *within* overallTabPane
         parent.insertAdjacentHTML("afterbegin", htmlString);
-        for (key in GRAPHMETRICSDATA) {
+
+        for (const key in GRAPHMETRICSDATA) {
           barChart(
             "#chart-" + key.toLowerCase(),
             GRAPHMETRICSDATA[key],
@@ -430,26 +448,29 @@ function renderOverall() {
     renderScoresTable();
   } // enfd of if
 
-  lineChart(
-    "#chart-elbow",
-    KDATA.elbow.map(function (e) {
-      return { k: +e.k, inertia: +e.inertia };
-    }),
-    "k",
-    "inertia",
-    "Elbow (Inertia vs k)"
-  );
+  if (tabName !== "Comfort Optimisation Models") {
+    console.log("KDATA ", KDATA);
+    lineChart(
+      "#chart-elbow",
+      KDATA.elbow.map(function (e) {
+        return { k: +e.k, inertia: +e.inertia };
+      }),
+      "k",
+      "inertia",
+      "Elbow (Inertia vs k)"
+    );
 
-  lineChart(
-    "#chart-silhouette",
-    KDATA.silhouette.map(function (s) {
-      return { k: +s.k, silhouette: +s.silhouette };
-    }),
-    "k",
-    "silhouette",
-    "Silhouette vs k"
-  );
-  // renderScoresTable();
+    lineChart(
+      "#chart-silhouette",
+      KDATA.silhouette.map(function (s) {
+        return { k: +s.k, silhouette: +s.silhouette };
+      }),
+      "k",
+      "silhouette",
+      "Silhouette vs k"
+    );
+    // renderScoresTable();
+  }
 }
 function fmt(x) {
   return x == null || Number.isNaN(x)
@@ -481,42 +502,75 @@ document.addEventListener("DOMContentLoaded", function () {
           let keyID = key.replace(/ /g, "_");
           if (greatGrandChild) {
             if (!greatGrandChild.hasAttribute("id")) {
-              greatGrandChild.setAttribute("id", "chart-" + keyID);
-              const formData = new FormData();
-              formData.append("graphType", tab.getAttribute("data-tab"));
-              formData.append("activePage", tabName);
-              console.log(formData);
-              fetch("get_graph_data", {
-                method: "POST",
-                body: formData,
-              })
-                .then((response) => {
-                  if (!response.ok) {
-                    throw new Error("Network response was not ok");
-                  }
-                  return response.json(); // ← parses the body as JSON
+              if (tabName !== "Comfort Optimisation Models") {
+                greatGrandChild.setAttribute("id", "chart-" + keyID);
+                const formData = new FormData();
+                formData.append("graphType", tab.getAttribute("data-tab"));
+                formData.append("activePage", tabName);
+                console.log(formData);
+                fetch("get_graph_data", {
+                  method: "POST",
+                  body: formData,
                 })
-                .then((data) => {
-                  keyID = "#chart-" + keyID;
-                  console.log("DATA FETCHED FOR TAB ", tabName);
-                  switch (tabName) {
-                    case "Load Balancing Models":
-                    case "Behavioural Change Impact Models":
-                    case "Dynamic Pricing Optimisation Models":
-                    case "Anomaly Detection Models":
-                      renderSeries(keyID, data.results, "Graph for ");
-                      // renderHeatmap(keyID, data.results, "Heatmap for ");
-                      // renderScatterPlot(keyID, data.results, "Scatter Plot for ");
-                      break;
-                    case "Energy Consumption Forecasting":
-                      renderSeries(keyID, data.results, "Graph for ");
-                      break;
-                    default:
-                  }
-                });
-              // .catch((error) => {
-              //   console.error("Fetch error:", error);
-              // });
+                  .then((response) => {
+                    if (!response.ok) {
+                      throw new Error("Network response was not ok");
+                    }
+                    return response.json(); // ← parses the body as JSON
+                  })
+                  .then((data) => {
+                    keyID = "#chart-" + keyID;
+                    console.log("DATA FETCHED FOR TAB ", tabName);
+                    switch (tabName) {
+                      case "Load Balancing Models":
+                      case "Behavioural Change Impact Models":
+                        // IFC loading handled separately
+                        break;
+                      case "Dynamic Pricing Optimisation Models":
+                      case "Anomaly Detection Models":
+                        renderSeries(keyID, data.results, "Graph for ");
+                        // renderHeatmap(keyID, data.results, "Heatmap for ");
+                        // renderScatterPlot(keyID, data.results, "Scatter Plot for ");
+                        break;
+                      case "Energy Consumption Forecasting":
+                        renderSeries(keyID, data.results, "Graph for ");
+                        break;
+                      default:
+                    }
+                  });
+                // .catch((error) => {
+                //   console.error("Fetch error:", error);
+                // });
+              } //enf of if - which probably should be a switch ta omake it clearer
+              else {
+                if (tabName === "Comfort Optimisation Models") {
+                  // dissplacy ifc and get data recommendations
+                  greatGrandChild.innerHTML=ifc_card
+                  greatGrandChild.style.height="fit-content"
+                  greatGrandChild.insertAdjacentHTML('beforebegin', Comfort_details_Card_html)
+                  buildHouse("buildingCardID")
+                  greatGrandChild.setAttribute("id", "chart-" + keyID);
+                  const formData = new FormData();
+                  formData.append("graphType", tab.getAttribute("data-tab"));
+                  formData.append("activePage", tabName);
+                  console.log(formData);
+                  fetch("get_ifc_data", {
+                    method: "POST",
+                    body: formData,
+                  })
+                    .then((response) => {
+                      if (!response.ok) {
+                        throw new Error("Network response was not ok");
+                      }
+                      return response.json(); // ← parses the body as JSON
+                    })
+                    .then((data) => {
+                      console.log(data);
+                    });
+                } // end of tab name
+              }
+            } else {
+              console.log("Chart already rendered for ", keyID);
             }
           }
         } else {

@@ -7,15 +7,28 @@ block page_content %}
   href="../static/css/heatsyncmodels.css"
   rel="stylesheet"
 />
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.180.0/build/three.module.js",
+    "web-ifc": "https://cdn.jsdelivr.net/npm/web-ifc@0.0.53/web-ifc-api.js",
+    "three/examples/jsm/utils/BufferGeometryUtils":
+      "https://unpkg.com/three@0.180.0/examples/jsm/utils/BufferGeometryUtils.js"
+  }
+}
+</script>
+
+
 <script>
   // Convert Python data to JavaScript variable
   const GRAPHMETRICSDATA = {{ dataForModels[0] | tojson }};
   const KDATA = {{ kdata | tojson }};
   const tabName = "{{ tab_name }}";
 </script>
-<script src="../static/js/index.js"></script>
+<!-- <script type="module" src="../static/js/buildings.js"></script> -->
+<script type="module" src="../static/js/index.js"></script>
 <script src="../static/js/pages.js"></script>
-<script type="module"  src="../static/js/buildings.js"></script>
 <!-- ============================================================== -->
 <!-- Start right Content here -->
 <!-- ============================================================== -->
@@ -30,34 +43,9 @@ block page_content %}
           {% endfor %}
         </div>
         <div class="tabpanes">
-          <div  class="pane" data-pane="overall" style="display:block">
-            <div class="grid" id="overallTabPane">
-              <div class="card"><h3>Elbow Chart (Inertia vs k)</h3><br /><p><strong>Elbow Chart</strong> — This line chart helps identify the optimal number of clusters for pattern discovery. Inertia (the within-cluster sum of squared distances) decreases as k increases. The "elbow" point—where the curve starts to flatten—indicates the balance between model simplicity and data fit.</p></br /><div class="chart" id="chart-elbow"></div></div>
-              <div class="card"><h3>Silhouette Score vs k</h3><br /><p><strong>Silhouette Score</strong> — This line chart measures how well each data point fits within its assigned cluster compared to other clusters (range −1 to 1). Higher scores indicate well-separated, compact clusters. The peak silhouette value helps identify the ideal number of clusters (k) for clear, interpretable groupings.</p></br /><div class="chart" id="chart-silhouette"></div></div>
-              <div class="card full"><h3>Scores Table</h3><div class="table-wrap"><table id="scores-table"></table></div></div>
-            </div>
-          </div>
-
-          <div class="pane" data-pane="arima">
-            <div class="grid">
-              <div class="card full"><h3>ARIMA — Actual vs Prediction</h3><div class="chart" id="chart-arima"></div></div>
-              <div class="card"><h3>ARIMA — Metrics</h3><div id="metrics-arima"></div></div>
-            </div>
-          </div>
-
-          <div class="pane" data-pane="sarimax">
-            <div class="grid">
-              <div class="card full"><h3>SARIMAX — Actual vs Prediction</h3><div class="chart" id="chart-sarimax"></div></div>
-              <div class="card"><h3>SARIMAX — Metrics</h3><div id="metrics-sarimax"></div></div>
-            </div>
-          </div>
-
-          <div class="pane" data-pane="lstm">
-            <div class="grid">
-              <div class="card full"><h3>LSTM — Actual vs Prediction</h3><div class="chart" id="chart-lstm"></div></div>
-              <div class="card"><h3>LSTM — Metrics</h3><div id="metrics-lstm"></div></div>
-            </div>
-          </div>
+          <section id="metrics-main-content">
+            </section>
+       
 
           {% for tab in topLeveltabs %}
 
